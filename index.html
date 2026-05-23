@@ -642,12 +642,70 @@
         return wordDefinitionCache.get(normalized)!;
       }
 
-      function WordToken({ word }: { word: string }) {
+      type TextSegment = {
+        text: string;
+        style: React.CSSProperties;
+      };
+
+      function sanitizedColor(value: string | null): string | undefined {
+        const color = (value || "").trim();
+        if (!color) return undefined;
+        if (window.CSS?.supports?.("color", color)) return color;
+        return undefined;
+      }
+
+      function styleForElement(element: Element, inherited: React.CSSProperties): React.CSSProperties {
+        const style = { ...inherited };
+        const tag = element.tagName.toLowerCase();
+        if (tag === "font") {
+          const color = sanitizedColor(element.getAttribute("color"));
+          if (color) style.color = color;
+        }
+        if (tag === "b" || tag === "strong") style.fontWeight = 800;
+        if (tag === "i" || tag === "em") style.fontStyle = "italic";
+        if (tag === "u") style.textDecoration = "underline";
+        return style;
+      }
+
+      function parseSubtitleMarkup(text: string): TextSegment[] {
+        const parser = new DOMParser();
+        const document = parser.parseFromString(`<div>${text}</div>`, "text/html");
+        const root = document.body.firstElementChild;
+        const segments: TextSegment[] = [];
+
+        const walk = (node: Node, style: React.CSSProperties) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            if (node.textContent) segments.push({ text: node.textContent, style });
+            return;
+          }
+
+          if (node.nodeType !== Node.ELEMENT_NODE) return;
+          const element = node as Element;
+          const tag = element.tagName.toLowerCase();
+          if (tag === "script" || tag === "style") return;
+          const childStyle = styleForElement(element, style);
+          element.childNodes.forEach((child) => walk(child, childStyle));
+        };
+
+        if (root) root.childNodes.forEach((child) => walk(child, {}));
+        return segments.length ? segments : [{ text, style: {} }];
+      }
+
+      function WordToken({ word, style }: { word: string; style?: React.CSSProperties }) {
         const [preview, setPreview] = useState("");
         const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+        const [open, setOpen] = useState(false);
+        const timerRef = useRef<number | null>(null);
         const normalized = normalizeWord(word);
 
-        const loadPreview = () => {
+        const clearTimer = () => {
+          if (timerRef.current !== null) {
+            window.clearTimeout(timerRef.current);
+            timerRef.current = null;
+          }
+        };
+
+        const loadPreview = useCallback(() => {
           if (status === "ready" || status === "loading") return;
           setStatus("loading");
           fetchWiktionaryPreview(word)
@@ -659,20 +717,38 @@
               setPreview(error instanceof Error ? error.message : "Preview unavailable.");
               setStatus("error");
             });
+        }, [status, word]);
+
+        const showPreview = () => {
+          setOpen(true);
+          clearTimer();
+          if (status === "idle") {
+            timerRef.current = window.setTimeout(loadPreview, 1000);
+          }
         };
+
+        const hidePreview = () => {
+          setOpen(false);
+          clearTimer();
+        };
+
+        useEffect(() => clearTimer, []);
 
         return (
           <a
             className="word-link"
+            style={style}
             href={wiktionaryUrl(word)}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(event) => event.stopPropagation()}
-            onMouseEnter={loadPreview}
-            onFocus={loadPreview}
+            onMouseEnter={showPreview}
+            onMouseLeave={hidePreview}
+            onFocus={showPreview}
+            onBlur={hidePreview}
           >
             {word}
-            {status !== "idle" ? (
+            {open && status !== "idle" ? (
               <span className="word-preview" role="tooltip">
                 {status === "loading" ? `Loading ${normalized}...` : preview}
               </span>
@@ -683,20 +759,28 @@
 
       function SubtitleText({ text }: { text: string }) {
         const wordPattern = /[\p{L}\p{M}]+(?:[’'][\p{L}\p{M}]+)?/gu;
-        const renderLine = (line: string) => {
+        const renderSegment = (segment: TextSegment, segmentKey: string) => {
           const parts: React.ReactNode[] = [];
           let lastIndex = 0;
-          for (const match of line.matchAll(wordPattern)) {
+          for (const match of segment.text.matchAll(wordPattern)) {
             const word = match[0];
             const index = match.index || 0;
             if (index > lastIndex) {
-              parts.push(line.slice(lastIndex, index));
+              parts.push(
+                <span key={`${segmentKey}-text-${lastIndex}`} style={segment.style}>
+                  {segment.text.slice(lastIndex, index)}
+                </span>
+              );
             }
-            parts.push(<WordToken key={`${index}-${word}`} word={word} />);
+            parts.push(<WordToken key={`${segmentKey}-word-${index}-${word}`} word={word} style={segment.style} />);
             lastIndex = index + word.length;
           }
-          if (lastIndex < line.length) {
-            parts.push(line.slice(lastIndex));
+          if (lastIndex < segment.text.length) {
+            parts.push(
+              <span key={`${segmentKey}-text-${lastIndex}`} style={segment.style}>
+                {segment.text.slice(lastIndex)}
+              </span>
+            );
           }
           return parts;
         };
@@ -706,7 +790,11 @@
           <>
             {lines.map((line, lineIndex) => (
               <React.Fragment key={lineIndex}>
-                {renderLine(line)}
+                {parseSubtitleMarkup(line).map((segment, segmentIndex) => (
+                  <React.Fragment key={`${lineIndex}-${segmentIndex}`}>
+                    {renderSegment(segment, `${lineIndex}-${segmentIndex}`)}
+                  </React.Fragment>
+                ))}
                 {lineIndex < lines.length - 1 ? <br /> : null}
               </React.Fragment>
             ))}
@@ -909,6 +997,25 @@
           const nextIndex = Math.max(0, Math.min(cues.length - 1, base + direction));
           setTime(cues[nextIndex].startMs);
         }, [cues, timeMs, setTime]);
+
+        useEffect(() => {
+          const onKeyDown = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            const tag = target?.tagName.toLowerCase();
+            if (tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable) return;
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              jumpCue(-1);
+            }
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              jumpCue(1);
+            }
+          };
+
+          window.addEventListener("keydown", onKeyDown);
+          return () => window.removeEventListener("keydown", onKeyDown);
+        }, [jumpCue]);
 
         const layoutClass = getLayoutClass(mode, smallHeight);
 

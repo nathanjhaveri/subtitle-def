@@ -8,6 +8,8 @@ Open `index.html` directly in a browser, or serve it as a static file with nginx
 
 Click **Drop or select subtitle**, or drag an `.srt` file onto the load area. Playback, seeking, display modes, and dictionary previews all run client-side.
 
+Use the left and right arrow keys to jump to the previous or next subtitle.
+
 ## SRT Support
 
 SRT files are cue blocks separated by blank lines:
