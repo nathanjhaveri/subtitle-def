@@ -10,6 +10,8 @@ Click **Drop or select .srt file**, or drag an `.srt` file onto the load area. P
 
 Use the left and right arrow keys to jump to the previous or next subtitle.
 
+The last loaded subtitle file, position, and display mode are saved in browser local storage so refreshes can resume where you left off.
+
 ## SRT Support
 
 SRT files are cue blocks separated by blank lines:

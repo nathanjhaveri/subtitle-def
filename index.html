@@ -148,6 +148,8 @@
         display: grid;
         min-height: 0;
         padding: 0.25rem clamp(0.75rem, 2vw, 1.4rem);
+        position: relative;
+        z-index: 1;
       }
 
       .stage.empty {
@@ -317,6 +319,8 @@
       }
 
       .controls {
+        position: relative;
+        z-index: 5;
         padding: 0.5rem max(0.85rem, env(safe-area-inset-right)) max(0.65rem, env(safe-area-inset-bottom)) max(0.85rem, env(safe-area-inset-left));
         border-top: 1px solid #1f1f1c;
         background: rgba(6, 6, 6, 0.96);
@@ -401,6 +405,7 @@
       .compact-height .stage {
         padding-top: 0;
         padding-bottom: 0;
+        overflow: hidden;
       }
 
       .compact-height .lyrics {
@@ -413,8 +418,13 @@
       }
 
       .compact-height .cue-line.current {
-        font-size: clamp(1.32rem, 16vh, 3.1rem);
+        font-size: 2rem;
         line-height: 1.12;
+        pointer-events: none;
+      }
+
+      .compact-height .cue-time {
+        display: none;
       }
 
       .compact-height .controls {
@@ -444,6 +454,7 @@
         .stage {
           padding-top: 0;
           padding-bottom: 0;
+          overflow: hidden;
         }
 
         .lyrics {
@@ -455,8 +466,13 @@
         }
 
         .cue-line.current {
-          font-size: clamp(1.42rem, 18vh, 3.15rem);
+          font-size: 2rem;
           line-height: 1.12;
+          pointer-events: none;
+        }
+
+        .cue-time {
+          display: none;
         }
 
         .controls {
@@ -538,7 +554,8 @@
 
       type Mode = "auto" | "strip" | "context";
 
-      const REPOSITORY_URL = "https://gitlab.com/nathanjhaveri/subtitle-def";
+      const REPOSITORY_URL = "https://github.com/nathanjhaveri/subtitle-def";
+      const STORAGE_KEY = "subtitle-def:session:v1";
       const MODE_OPTIONS: { value: Mode; label: string; title: string }[] = [
         { value: "auto", label: "Auto", title: "Auto: use Bottom when the window is short, Side when it is tall." },
         { value: "strip", label: "Bottom", title: "Bottom: single-line view for placing the window under a video." },
@@ -548,6 +565,14 @@
       type ParseResult = {
         cues: Cue[];
         warning: string;
+      };
+
+      type StoredSession = {
+        fileName: string;
+        srtText: string;
+        timeMs: number;
+        mode: Mode;
+        updatedAt: number;
       };
 
       let subtitleModulePromise: Promise<any> | null = null;
@@ -594,6 +619,45 @@
         }
 
         return { cues, warning: warnings.join(" ") };
+      }
+
+      function isMode(value: unknown): value is Mode {
+        return value === "auto" || value === "strip" || value === "context";
+      }
+
+      function readStoredSession(): StoredSession | null {
+        try {
+          const raw = window.localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed.srtText !== "string" || !parsed.srtText.trim()) return null;
+          return {
+            fileName: typeof parsed.fileName === "string" && parsed.fileName ? parsed.fileName : "Restored subtitles.srt",
+            srtText: parsed.srtText,
+            timeMs: Number.isFinite(Number(parsed.timeMs)) ? Number(parsed.timeMs) : 0,
+            mode: isMode(parsed.mode) ? parsed.mode : "auto",
+            updatedAt: Number.isFinite(Number(parsed.updatedAt)) ? Number(parsed.updatedAt) : Date.now()
+          };
+        } catch (error) {
+          console.warn("Could not read saved subtitle session.", error);
+          return null;
+        }
+      }
+
+      function writeStoredSession(session: StoredSession) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+        } catch (error) {
+          console.warn("Could not save subtitle session.", error);
+        }
+      }
+
+      function clearStoredSession() {
+        try {
+          window.localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+          console.warn("Could not clear saved subtitle session.", error);
+        }
       }
 
       function formatTime(ms: number): string {
@@ -947,6 +1011,7 @@
       }) {
         const activeIndex = findActiveCueIndex(cues, timeMs);
         const baseIndex = nearestCueIndex(cues, activeIndex, timeMs);
+        const primaryIndex = smallHeight ? baseIndex : activeIndex;
         const contextSize = smallHeight ? 0 : 3;
         const start = Math.max(0, baseIndex - contextSize);
         const end = Math.min(cues.length - 1, baseIndex + contextSize);
@@ -956,9 +1021,9 @@
         return (
           <div className="lyrics" aria-live="polite">
             {visible.map(({ cue, index }) => (
-              <CueLine key={`${cue.startMs}-${index}`} cue={cue} current={index === activeIndex} onJump={onJump} />
+              <CueLine key={`${cue.startMs}-${index}`} cue={cue} current={index === primaryIndex} onJump={onJump} />
             ))}
-            {activeIndex === -1 ? (
+            {activeIndex === -1 && !smallHeight ? (
               <div className="cue-line current empty-current">
                 {cues.length ? "..." : "Load subtitles to begin"}
               </div>
@@ -992,15 +1057,86 @@
       function App() {
         const [cues, setCues] = useState<Cue[]>([]);
         const [fileName, setFileName] = useState("");
+        const [sourceText, setSourceText] = useState("");
         const [timeMs, setTimeMs] = useState(0);
         const [playing, setPlaying] = useState(false);
         const [mode, setMode] = useState<Mode>("auto");
         const [error, setError] = useState("");
         const [warning, setWarning] = useState("");
+        const [restoring, setRestoring] = useState(true);
         const smallHeight = useSmallHeight();
         const startedAtRef = useRef(0);
         const startedFromRef = useRef(0);
+        const latestSessionRef = useRef<StoredSession | null>(null);
         const durationMs = cues.length ? cues[cues.length - 1].endMs : 0;
+
+        useEffect(() => {
+          const stored = readStoredSession();
+          if (!stored) {
+            setRestoring(false);
+            return;
+          }
+
+          let cancelled = false;
+          setMode(stored.mode);
+          parseSrt(stored.srtText)
+            .then((result) => {
+              if (cancelled) return;
+              const maxTime = result.cues[result.cues.length - 1]?.endMs ?? 0;
+              setCues(result.cues);
+              setFileName(stored.fileName);
+              setSourceText(stored.srtText);
+              setTimeMs(Math.max(0, Math.min(maxTime, stored.timeMs)));
+              setWarning(result.warning);
+            })
+            .catch((restoreError) => {
+              if (cancelled) return;
+              clearStoredSession();
+              setError(`Saved subtitles could not be restored: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
+            })
+            .finally(() => {
+              if (!cancelled) setRestoring(false);
+            });
+
+          return () => {
+            cancelled = true;
+          };
+        }, []);
+
+        useEffect(() => {
+          if (!sourceText || !cues.length) {
+            latestSessionRef.current = null;
+            return;
+          }
+
+          latestSessionRef.current = {
+            fileName,
+            srtText: sourceText,
+            timeMs,
+            mode,
+            updatedAt: Date.now()
+          };
+
+          if (!playing) {
+            writeStoredSession(latestSessionRef.current);
+          }
+        }, [sourceText, fileName, timeMs, mode, cues.length, playing]);
+
+        useEffect(() => {
+          if (!playing) return;
+          const id = window.setInterval(() => {
+            if (latestSessionRef.current) writeStoredSession(latestSessionRef.current);
+          }, 1000);
+          return () => window.clearInterval(id);
+        }, [playing]);
+
+        useEffect(() => {
+          const saveBeforeUnload = () => {
+            if (latestSessionRef.current) writeStoredSession(latestSessionRef.current);
+          };
+          window.addEventListener("beforeunload", saveBeforeUnload);
+          return () => window.removeEventListener("beforeunload", saveBeforeUnload);
+        }, []);
 
         useEffect(() => {
           if (!playing) return;
@@ -1033,16 +1169,30 @@
           setPlaying(false);
           setError("");
           setWarning("");
+          setSourceText("");
           try {
             const text = await file.text();
             const result = await parseSrt(text);
             setCues(result.cues);
             setFileName(file.name);
+            setSourceText(text);
             setTimeMs(0);
             setWarning(result.warning);
           } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : String(loadError));
           }
+        }, []);
+
+        const resetSession = useCallback(() => {
+          setPlaying(false);
+          setCues([]);
+          setFileName("");
+          setSourceText("");
+          setTimeMs(0);
+          setWarning("");
+          setError("");
+          latestSessionRef.current = null;
+          clearStoredSession();
         }, []);
 
         const jumpCue = useCallback((direction: -1 | 1) => {
@@ -1106,14 +1256,14 @@
               {cues.length ? (
                 <Lyrics cues={cues} timeMs={timeMs} onJump={setTime} smallHeight={compactHeight} />
               ) : (
-                <DropZone onLoad={loadFile} error={error} />
+                <DropZone onLoad={loadFile} error={restoring ? "" : error} />
               )}
             </section>
 
             <footer className="controls">
               <div className="control-row">
                 <div className="button-group">
-                  <button className="control-button" type="button" title="Load another SRT" onClick={() => setCues([])}>
+                  <button className="control-button" type="button" title="Load another SRT" onClick={resetSession}>
                     X
                   </button>
                   <button className="control-button" type="button" title="Previous cue" disabled={!cues.length} onClick={() => jumpCue(-1)}>
