@@ -473,7 +473,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="text/babel" data-presets="typescript,react" data-filename="app.tsx">
+    <script id="app-source" type="text/plain">
       const { useCallback, useEffect, useMemo, useRef, useState } = React;
       const SUBTITLE_MODULE_URL = "https://esm.sh/subtitle@4.0.1";
       const WIKTIONARY_API_URL = "https://fr.wiktionary.org/w/api.php";
@@ -980,6 +980,31 @@
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+    <script>
+      (function runInlineTypescriptApp() {
+        const root = document.getElementById("root");
+        try {
+          const source = document.getElementById("app-source").textContent;
+          const compiled = Babel.transform(source, {
+            filename: "app.tsx",
+            presets: [
+              ["typescript", { allExtensions: true, isTSX: true }],
+              ["react", { runtime: "classic" }]
+            ]
+          }).code;
+          const script = document.createElement("script");
+          script.text = compiled;
+          document.body.appendChild(script);
+        } catch (error) {
+          root.innerHTML = "";
+          const message = document.createElement("pre");
+          message.style.cssText = "margin:2rem;white-space:pre-wrap;color:#ff756f;font:16px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+          message.textContent = error && error.stack ? error.stack : String(error);
+          root.appendChild(message);
+          throw error;
+        }
+      })();
     </script>
   </body>
 </html>
