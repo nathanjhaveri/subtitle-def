@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
+    <title>Sub Trad</title>
+    <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.25.7/babel.min.js"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050505;
+        --panel: #101010;
+        --panel-strong: #181818;
+        --text: #f1f1ed;
+        --muted: #aaa9a2;
+        --quiet: #6f6e68;
+        --line: #2b2b29;
+        --accent: #5ca7ff;
+        --accent-strong: #d6ebff;
+        --danger: #ff756f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-width: 320px;
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+        color: var(--text);
+        background: transparent;
+      }
+
+      .app {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        height: 100%;
+        min-height: 100%;
+        background: radial-gradient(circle at top, #111 0, #050505 38rem);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: max(0.65rem, env(safe-area-inset-top)) max(0.85rem, env(safe-area-inset-right)) 0.5rem max(0.85rem, env(safe-area-inset-left));
+        color: var(--muted);
+        min-width: 0;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 1.7rem;
+        height: 1.7rem;
+        border: 1px solid var(--line);
+        border-radius: 0.4rem;
+        background: var(--panel);
+        color: var(--accent-strong);
+        font-weight: 800;
+      }
+
+      .brand-title {
+        overflow: hidden;
+        color: var(--text);
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .brand-subtitle {
+        overflow: hidden;
+        color: var(--quiet);
+        font-size: 0.78rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mode-switch {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        padding: 0.16rem;
+        border: 1px solid var(--line);
+        border-radius: 0.55rem;
+        background: rgba(20, 20, 20, 0.78);
+      }
+
+      .mode-button {
+        min-width: 4.1rem;
+        min-height: 2rem;
+        border-radius: 0.42rem;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+
+      .mode-button.active {
+        background: var(--panel-strong);
+        color: var(--text);
+      }
+
+      .stage {
+        display: grid;
+        min-height: 0;
+        padding: 0.25rem clamp(0.75rem, 2vw, 1.4rem);
+      }
+
+      .stage.empty {
+        place-items: center;
+      }
+
+      .dropzone {
+        display: grid;
+        place-items: center;
+        width: min(36rem, calc(100vw - 2rem));
+        min-height: min(18rem, calc(100vh - 9rem));
+        padding: 2rem;
+        border: 1px dashed #3a3a37;
+        border-radius: 0.7rem;
+        background: rgba(16, 16, 16, 0.86);
+        color: var(--muted);
+        text-align: center;
+        transition: border-color 0.16s ease, background 0.16s ease;
+      }
+
+      .dropzone.dragging {
+        border-color: var(--accent);
+        background: #0f1720;
+      }
+
+      .load-button,
+      .control-button {
+        display: inline-grid;
+        place-items: center;
+        min-width: 2.45rem;
+        min-height: 2.45rem;
+        border: 1px solid var(--line);
+        border-radius: 0.55rem;
+        background: var(--panel-strong);
+        cursor: pointer;
+      }
+
+      .load-button {
+        min-width: 13rem;
+        margin-bottom: 0.75rem;
+        padding: 0 1.2rem;
+        color: var(--text);
+        font-weight: 750;
+      }
+
+      .control-button:hover,
+      .load-button:hover,
+      .mode-button:hover {
+        border-color: #44443f;
+        background: #202020;
+      }
+
+      .hint {
+        margin: 0.35rem 0 0;
+        color: var(--quiet);
+        font-size: 0.85rem;
+        line-height: 1.45;
+      }
+
+      .message {
+        margin-top: 0.9rem;
+        color: var(--danger);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+
+      .lyrics {
+        display: grid;
+        grid-auto-rows: min-content;
+        align-content: center;
+        gap: clamp(0.48rem, 1.8vh, 1.05rem);
+        min-height: 0;
+        margin: 0 auto;
+        width: min(70rem, 100%);
+      }
+
+      .cue-line {
+        width: 100%;
+        padding: 0.05rem clamp(0.2rem, 1vw, 0.8rem);
+        border-radius: 0.45rem;
+        color: var(--quiet);
+        line-height: 1.28;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      .cue-line:hover {
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .cue-line.context {
+        color: var(--muted);
+        font-size: clamp(1rem, 3vh, 1.85rem);
+        opacity: 0.52;
+      }
+
+      .cue-line.current {
+        color: var(--text);
+        font-size: clamp(1.7rem, 7.3vh, 4.6rem);
+        font-weight: 740;
+        opacity: 1;
+      }
+
+      .cue-time {
+        display: block;
+        margin-bottom: 0.2rem;
+        color: var(--quiet);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.72rem;
+        font-weight: 500;
+      }
+
+      .empty-current {
+        color: #3f3f3a;
+      }
+
+      .controls {
+        padding: 0.5rem max(0.85rem, env(safe-area-inset-right)) max(0.65rem, env(safe-area-inset-bottom)) max(0.85rem, env(safe-area-inset-left));
+        border-top: 1px solid #1f1f1c;
+        background: rgba(6, 6, 6, 0.96);
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: clamp(0.55rem, 1.4vw, 1rem);
+      }
+
+      .button-group {
+        display: flex;
+        align-items: center;
+        gap: 0.42rem;
+      }
+
+      .time-readout {
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: clamp(0.78rem, 2.5vw, 0.94rem);
+        white-space: nowrap;
+      }
+
+      .seek {
+        display: grid;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .seek input {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+
+      .cue-map {
+        position: relative;
+        width: 100%;
+        height: 1.3rem;
+        margin-top: 0.32rem;
+        overflow: hidden;
+        border-radius: 0.35rem;
+        background: #171715;
+      }
+
+      .cue-segment {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        min-width: 1px;
+        background: rgba(241, 241, 237, 0.54);
+      }
+
+      .cue-cursor {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #ff5d55;
+      }
+
+      .warning {
+        margin-top: 0.35rem;
+        color: var(--quiet);
+        font-size: 0.76rem;
+      }
+
+      .hidden-input {
+        display: none;
+      }
+
+      @media (max-height: 360px) {
+        .app {
+          grid-template-rows: auto minmax(0, 1fr) auto;
+        }
+
+        .topbar {
+          padding-top: 0.36rem;
+          padding-bottom: 0.25rem;
+        }
+
+        .brand-subtitle {
+          display: none;
+        }
+
+        .stage {
+          padding-top: 0;
+          padding-bottom: 0;
+        }
+
+        .lyrics {
+          gap: 0.14rem;
+        }
+
+        .cue-line.context {
+          display: none;
+        }
+
+        .cue-line.current {
+          font-size: clamp(1.42rem, 18vh, 3.15rem);
+          line-height: 1.12;
+        }
+
+        .controls {
+          padding-top: 0.25rem;
+          padding-bottom: 0.38rem;
+        }
+
+        .control-button {
+          min-width: 2.1rem;
+          min-height: 2.1rem;
+        }
+
+        .mode-switch {
+          display: none;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .topbar {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .mode-switch {
+          width: 100%;
+        }
+
+        .mode-button {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .control-row {
+          grid-template-columns: 1fr;
+        }
+
+        .button-group {
+          justify-content: center;
+        }
+
+        .time-readout {
+          text-align: center;
+        }
+      }
+
+      .layout-strip .lyrics {
+        align-content: end;
+        padding-bottom: min(2.2vh, 0.8rem);
+      }
+
+      .layout-strip .cue-line.context {
+        font-size: clamp(0.88rem, 2.4vh, 1.28rem);
+        opacity: 0.36;
+      }
+
+      .layout-strip .cue-line.current {
+        font-size: clamp(1.55rem, 9vh, 3.7rem);
+      }
+
+      .layout-context .lyrics {
+        align-content: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel" data-presets="typescript,react">
+      const { useCallback, useEffect, useMemo, useRef, useState } = React;
+      const SUBTITLE_MODULE_URL = "https://esm.sh/subtitle@4.0.1";
+
+      type Cue = {
+        index: number;
+        startMs: number;
+        endMs: number;
+        text: string;
+      };
+
+      type Mode = "auto" | "strip" | "context";
+
+      type ParseResult = {
+        cues: Cue[];
+        warning: string;
+      };
+
+      let subtitleModulePromise: Promise<any> | null = null;
+
+      function loadSubtitleModule(): Promise<any> {
+        if (!subtitleModulePromise) {
+          subtitleModulePromise = import(SUBTITLE_MODULE_URL);
+        }
+        return subtitleModulePromise;
+      }
+
+      // SRT is a sequence of cue blocks separated by blank lines:
+      // optional numeric index, "start --> end", then one or more text lines.
+      // Parsing is delegated to subtitle@4.0.1, matching the parser used by Substitute.
+      async function parseSrt(text: string): Promise<ParseResult> {
+        const subtitle = await loadSubtitleModule();
+        const parsed = subtitle.parseSync(text);
+        const warnings: string[] = [];
+        const cues = parsed
+          .filter((node: any) => node && node.type === "cue" && node.data)
+          .map((node: any, index: number) => {
+            const data = node.data;
+            return {
+              index,
+              startMs: Number(data.start),
+              endMs: Number(data.end),
+              text: String(data.text || "").trim()
+            };
+          })
+          .filter((cue: Cue) => {
+            return Number.isFinite(cue.startMs) && Number.isFinite(cue.endMs) && cue.endMs >= cue.startMs && cue.text.length > 0;
+          })
+          .sort((a: Cue, b: Cue) => a.startMs - b.startMs || a.endMs - b.endMs);
+
+        if (cues.length === 0) {
+          throw new Error("No valid SRT cues were found.");
+        }
+
+        for (let i = 1; i < cues.length; i += 1) {
+          if (cues[i].startMs < cues[i - 1].endMs) {
+            warnings.push("Overlapping cues were preserved.");
+            break;
+          }
+        }
+
+        return { cues, warning: warnings.join(" ") };
+      }
+
+      function formatTime(ms: number): string {
+        const clamped = Math.max(0, Math.floor(ms / 1000));
+        const hours = Math.floor(clamped / 3600);
+        const minutes = Math.floor((clamped % 3600) / 60);
+        const seconds = clamped % 60;
+        const two = (value: number) => String(value).padStart(2, "0");
+        return hours > 0 ? `${hours}:${two(minutes)}:${two(seconds)}` : `${minutes}:${two(seconds)}`;
+      }
+
+      function findActiveCueIndex(cues: Cue[], timeMs: number): number {
+        let low = 0;
+        let high = cues.length;
+        while (low < high) {
+          const mid = Math.floor((low + high) / 2);
+          if (timeMs < cues[mid].endMs) {
+            high = mid;
+          } else {
+            low = mid + 1;
+          }
+        }
+        return cues[low] && timeMs >= cues[low].startMs ? low : -1;
+      }
+
+      function nearestCueIndex(cues: Cue[], activeIndex: number, timeMs: number): number {
+        if (activeIndex >= 0) return activeIndex;
+        let next = cues.findIndex((cue) => cue.startMs > timeMs);
+        if (next === -1) return cues.length - 1;
+        return Math.max(0, next - 1);
+      }
+
+      function useSmallHeight(): boolean {
+        const [small, setSmall] = useState(() => window.innerHeight <= 430);
+        useEffect(() => {
+          const onResize = () => setSmall(window.innerHeight <= 430);
+          window.addEventListener("resize", onResize);
+          return () => window.removeEventListener("resize", onResize);
+        }, []);
+        return small;
+      }
+
+      function getLayoutClass(mode: Mode, smallHeight: boolean): string {
+        if (mode === "strip") return "layout-strip";
+        if (mode === "context") return "layout-context";
+        return smallHeight ? "layout-strip" : "layout-context";
+      }
+
+      function PlainSubtitleText({ text }: { text: string }) {
+        const lines = text.split(/\n/);
+        return (
+          <>
+            {lines.map((line, lineIndex) => (
+              <React.Fragment key={lineIndex}>
+                {line}
+                {lineIndex < lines.length - 1 ? <br /> : null}
+              </React.Fragment>
+            ))}
+          </>
+        );
+      }
+
+      function DropZone({
+        onLoad,
+        error
+      }: {
+        onLoad: (file: File) => void;
+        error: string;
+      }) {
+        const [dragging, setDragging] = useState(false);
+        const inputRef = useRef<HTMLInputElement | null>(null);
+
+        const pick = () => inputRef.current?.click();
+        const onFiles = (files: FileList | null) => {
+          const file = files && files[0];
+          if (file) onLoad(file);
+        };
+
+        return (
+          <div
+            className={`dropzone ${dragging ? "dragging" : ""}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              onFiles(event.dataTransfer.files);
+            }}
+          >
+            <div>
+              <button className="load-button" type="button" onClick={pick}>
+                Drop or select subtitle
+              </button>
+              <input
+                ref={inputRef}
+                className="hidden-input"
+                type="file"
+                accept=".srt,text/plain"
+                onChange={(event) => onFiles(event.currentTarget.files)}
+              />
+              <p className="hint">Load a local SRT file. Everything stays in this browser.</p>
+              <p className="hint">SRT blocks use an optional index, a time range, subtitle text, and a blank line.</p>
+              {error ? <div className="message">{error}</div> : null}
+            </div>
+          </div>
+        );
+      }
+
+      function CueLine({
+        cue,
+        current,
+        onJump
+      }: {
+        cue: Cue;
+        current?: boolean;
+        onJump: (timeMs: number) => void;
+      }) {
+        return (
+          <button
+            className={`cue-line ${current ? "current" : "context"}`}
+            type="button"
+            onClick={() => onJump(cue.startMs)}
+          >
+            <span className="cue-time">{formatTime(cue.startMs)}</span>
+            <PlainSubtitleText text={cue.text} />
+          </button>
+        );
+      }
+
+      function Lyrics({
+        cues,
+        timeMs,
+        onJump,
+        smallHeight
+      }: {
+        cues: Cue[];
+        timeMs: number;
+        onJump: (timeMs: number) => void;
+        smallHeight: boolean;
+      }) {
+        const activeIndex = findActiveCueIndex(cues, timeMs);
+        const baseIndex = nearestCueIndex(cues, activeIndex, timeMs);
+        const contextSize = smallHeight ? 1 : 3;
+        const start = Math.max(0, baseIndex - contextSize);
+        const end = Math.min(cues.length - 1, baseIndex + contextSize);
+        const visible = [];
+        for (let i = start; i <= end; i += 1) visible.push({ cue: cues[i], index: i });
+
+        return (
+          <div className="lyrics" aria-live="polite">
+            {visible.map(({ cue, index }) => (
+              <CueLine key={`${cue.startMs}-${index}`} cue={cue} current={index === activeIndex} onJump={onJump} />
+            ))}
+            {activeIndex === -1 ? (
+              <div className="cue-line current empty-current">
+                {cues.length ? "..." : "Load subtitles to begin"}
+              </div>
+            ) : null}
+          </div>
+        );
+      }
+
+      function CueMap({
+        cues,
+        durationMs,
+        timeMs
+      }: {
+        cues: Cue[];
+        durationMs: number;
+        timeMs: number;
+      }) {
+        const visibleCues = cues.slice(0, 700);
+        return (
+          <div className="cue-map" aria-hidden="true">
+            {visibleCues.map((cue, index) => {
+              const left = durationMs ? (cue.startMs / durationMs) * 100 : 0;
+              const width = durationMs ? Math.max(0.08, ((cue.endMs - cue.startMs) / durationMs) * 100) : 0;
+              return <span className="cue-segment" key={index} style={{ left: `${left}%`, width: `${width}%` }} />;
+            })}
+            <span className="cue-cursor" style={{ left: `${durationMs ? (timeMs / durationMs) * 100 : 0}%` }} />
+          </div>
+        );
+      }
+
+      function App() {
+        const [cues, setCues] = useState<Cue[]>([]);
+        const [fileName, setFileName] = useState("");
+        const [timeMs, setTimeMs] = useState(0);
+        const [playing, setPlaying] = useState(false);
+        const [mode, setMode] = useState<Mode>("auto");
+        const [error, setError] = useState("");
+        const [warning, setWarning] = useState("");
+        const smallHeight = useSmallHeight();
+        const startedAtRef = useRef(0);
+        const startedFromRef = useRef(0);
+        const durationMs = cues.length ? cues[cues.length - 1].endMs : 0;
+
+        useEffect(() => {
+          if (!playing) return;
+          startedAtRef.current = performance.now();
+          startedFromRef.current = timeMs;
+          let frame = 0;
+          const tick = (now: number) => {
+            const next = Math.min(durationMs, startedFromRef.current + now - startedAtRef.current);
+            setTimeMs(next);
+            if (next >= durationMs) {
+              setPlaying(false);
+              return;
+            }
+            frame = requestAnimationFrame(tick);
+          };
+          frame = requestAnimationFrame(tick);
+          return () => cancelAnimationFrame(frame);
+        }, [playing, durationMs]);
+
+        const setTime = useCallback((value: number) => {
+          setTimeMs(Math.max(0, Math.min(durationMs, value)));
+        }, [durationMs]);
+
+        const loadFile = useCallback(async (file: File) => {
+          setPlaying(false);
+          setError("");
+          setWarning("");
+          try {
+            const text = await file.text();
+            const result = await parseSrt(text);
+            setCues(result.cues);
+            setFileName(file.name);
+            setTimeMs(0);
+            setWarning(result.warning);
+          } catch (loadError) {
+            setError(loadError instanceof Error ? loadError.message : String(loadError));
+          }
+        }, []);
+
+        const jumpCue = useCallback((direction: -1 | 1) => {
+          if (!cues.length) return;
+          const active = findActiveCueIndex(cues, timeMs);
+          const base = nearestCueIndex(cues, active, timeMs);
+          const nextIndex = Math.max(0, Math.min(cues.length - 1, base + direction));
+          setTime(cues[nextIndex].startMs);
+        }, [cues, timeMs, setTime]);
+
+        const layoutClass = getLayoutClass(mode, smallHeight);
+
+        return (
+          <main className={`app ${layoutClass}`}>
+            <header className="topbar">
+              <div className="brand">
+                <div className="brand-mark">S</div>
+                <div>
+                  <div className="brand-title">{fileName || "Sub Trad"}</div>
+                  <div className="brand-subtitle">{cues.length ? `${cues.length} cues loaded` : "Static SRT subtitle player"}</div>
+                </div>
+              </div>
+              <div className="mode-switch" role="group" aria-label="Display mode">
+                {(["auto", "strip", "context"] as Mode[]).map((value) => (
+                  <button
+                    key={value}
+                    className={`mode-button ${mode === value ? "active" : ""}`}
+                    type="button"
+                    onClick={() => setMode(value)}
+                  >
+                    {value[0].toUpperCase() + value.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </header>
+
+            <section className={`stage ${cues.length ? "" : "empty"}`}>
+              {cues.length ? (
+                <Lyrics cues={cues} timeMs={timeMs} onJump={setTime} smallHeight={smallHeight || mode === "strip"} />
+              ) : (
+                <DropZone onLoad={loadFile} error={error} />
+              )}
+            </section>
+
+            <footer className="controls">
+              <div className="control-row">
+                <div className="button-group">
+                  <button className="control-button" type="button" title="Load another SRT" onClick={() => setCues([])}>
+                    X
+                  </button>
+                  <button className="control-button" type="button" title="Previous cue" disabled={!cues.length} onClick={() => jumpCue(-1)}>
+                    &lt;&lt;
+                  </button>
+                  <button className="control-button" type="button" title={playing ? "Pause" : "Play"} disabled={!cues.length} onClick={() => setPlaying((value) => !value)}>
+                    {playing ? "Pause" : "Play"}
+                  </button>
+                  <button className="control-button" type="button" title="Next cue" disabled={!cues.length} onClick={() => jumpCue(1)}>
+                    &gt;&gt;
+                  </button>
+                </div>
+                <div className="seek">
+                  <input
+                    type="range"
+                    min="0"
+                    max={durationMs || 1}
+                    value={Math.min(timeMs, durationMs || 1)}
+                    disabled={!cues.length}
+                    onChange={(event) => setTime(Number(event.currentTarget.value))}
+                  />
+                  {cues.length ? <CueMap cues={cues} durationMs={durationMs} timeMs={timeMs} /> : null}
+                </div>
+                <div className="time-readout">{formatTime(timeMs)} / {formatTime(durationMs)}</div>
+              </div>
+              {warning ? <div className="warning">{warning}</div> : null}
+            </footer>
+          </main>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
