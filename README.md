@@ -1,4 +1,4 @@
-# Sub Trad
+# Subtitle Def
 
 A single-file, static React subtitle player for `.srt` files. It is meant to sit under or beside a video while you study French subtitles, with every word linked to French Wiktionary.
 
