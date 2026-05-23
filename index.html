@@ -473,7 +473,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="text/babel" data-presets="typescript,react">
+    <script type="text/babel" data-presets="typescript,react" data-filename="app.tsx">
       const { useCallback, useEffect, useMemo, useRef, useState } = React;
       const SUBTITLE_MODULE_URL = "https://esm.sh/subtitle@4.0.1";
       const WIKTIONARY_API_URL = "https://fr.wiktionary.org/w/api.php";
@@ -878,8 +878,13 @@
         }, [playing, durationMs]);
 
         const setTime = useCallback((value: number) => {
-          setTimeMs(Math.max(0, Math.min(durationMs, value)));
-        }, [durationMs]);
+          const next = Math.max(0, Math.min(durationMs, value));
+          setTimeMs(next);
+          if (playing) {
+            startedAtRef.current = performance.now();
+            startedFromRef.current = next;
+          }
+        }, [durationMs, playing]);
 
         const loadFile = useCallback(async (file: File) => {
           setPlaying(false);
