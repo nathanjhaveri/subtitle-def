@@ -220,6 +220,8 @@
         line-height: 1.28;
         text-align: center;
         cursor: pointer;
+        border: 0;
+        background: transparent;
       }
 
       .cue-line:hover {
@@ -246,6 +248,56 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         font-size: 0.72rem;
         font-weight: 500;
+      }
+
+      .word-link {
+        position: relative;
+        color: inherit;
+        text-decoration: none;
+        text-decoration-color: transparent;
+        text-underline-offset: 0.15em;
+      }
+
+      .word-link:hover,
+      .word-link:focus {
+        color: var(--accent-strong);
+        text-decoration: underline;
+        text-decoration-color: rgba(214, 235, 255, 0.7);
+        outline: none;
+      }
+
+      .word-preview {
+        position: absolute;
+        z-index: 20;
+        left: 50%;
+        bottom: calc(100% + 0.55rem);
+        width: min(22rem, 74vw);
+        max-height: 12rem;
+        overflow: auto;
+        padding: 0.72rem 0.82rem;
+        border: 1px solid #363632;
+        border-radius: 0.5rem;
+        background: #151515;
+        box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.54);
+        color: var(--text);
+        font-size: 0.92rem;
+        font-weight: 500;
+        line-height: 1.4;
+        text-align: left;
+        transform: translateX(-50%);
+      }
+
+      .word-preview::after {
+        position: absolute;
+        left: calc(50% - 0.42rem);
+        bottom: -0.42rem;
+        width: 0.82rem;
+        height: 0.82rem;
+        border-right: 1px solid #363632;
+        border-bottom: 1px solid #363632;
+        background: #151515;
+        content: "";
+        transform: rotate(45deg);
       }
 
       .empty-current {
@@ -424,6 +476,8 @@
     <script type="text/babel" data-presets="typescript,react">
       const { useCallback, useEffect, useMemo, useRef, useState } = React;
       const SUBTITLE_MODULE_URL = "https://esm.sh/subtitle@4.0.1";
+      const WIKTIONARY_API_URL = "https://fr.wiktionary.org/w/api.php";
+      const wordDefinitionCache = new Map<string, Promise<string>>();
 
       type Cue = {
         index: number;
@@ -531,13 +585,128 @@
         return smallHeight ? "layout-strip" : "layout-context";
       }
 
-      function PlainSubtitleText({ text }: { text: string }) {
+      function normalizeWord(word: string): string {
+        return word.replace(/^['’]+|['’]+$/g, "").toLocaleLowerCase("fr");
+      }
+
+      function wiktionaryUrl(word: string): string {
+        return `https://fr.wiktionary.org/wiki/${encodeURIComponent(normalizeWord(word))}`;
+      }
+
+      function cleanWikitext(value: string): string {
+        let text = value
+          .replace(/<ref[\s\S]*?<\/ref>/gi, "")
+          .replace(/<[^>]+>/g, "")
+          .replace(/'''?/g, "");
+
+        for (let i = 0; i < 4; i += 1) {
+          text = text.replace(/\{\{[^{}]*\}\}/g, "");
+        }
+
+        return text
+          .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
+          .replace(/\[\[([^\]]+)\]\]/g, "$1")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      async function fetchWiktionaryPreview(word: string): Promise<string> {
+        const normalized = normalizeWord(word);
+        if (!normalized) throw new Error("No word selected.");
+        if (!wordDefinitionCache.has(normalized)) {
+          const params = new URLSearchParams({
+            action: "parse",
+            format: "json",
+            origin: "*",
+            prop: "wikitext",
+            page: normalized
+          });
+
+          wordDefinitionCache.set(normalized, fetch(`${WIKTIONARY_API_URL}?${params}`)
+            .then((response) => {
+              if (!response.ok) throw new Error("Preview unavailable.");
+              return response.json();
+            })
+            .then((data) => {
+              if (data.error) throw new Error("No Wiktionary page found.");
+              const wikitext = String(data?.parse?.wikitext?.["*"] || "");
+              const definitionLine = wikitext
+                .split(/\r?\n/)
+                .find((line) => /^#(?![:*])\s+/.test(line));
+              const preview = definitionLine ? cleanWikitext(definitionLine.replace(/^#+\s*/, "")) : "";
+              if (!preview) throw new Error("No short preview found.");
+              return preview.length > 320 ? `${preview.slice(0, 317)}...` : preview;
+            }));
+        }
+
+        return wordDefinitionCache.get(normalized)!;
+      }
+
+      function WordToken({ word }: { word: string }) {
+        const [preview, setPreview] = useState("");
+        const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+        const normalized = normalizeWord(word);
+
+        const loadPreview = () => {
+          if (status === "ready" || status === "loading") return;
+          setStatus("loading");
+          fetchWiktionaryPreview(word)
+            .then((value) => {
+              setPreview(value);
+              setStatus("ready");
+            })
+            .catch((error) => {
+              setPreview(error instanceof Error ? error.message : "Preview unavailable.");
+              setStatus("error");
+            });
+        };
+
+        return (
+          <a
+            className="word-link"
+            href={wiktionaryUrl(word)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            onMouseEnter={loadPreview}
+            onFocus={loadPreview}
+          >
+            {word}
+            {status !== "idle" ? (
+              <span className="word-preview" role="tooltip">
+                {status === "loading" ? `Loading ${normalized}...` : preview}
+              </span>
+            ) : null}
+          </a>
+        );
+      }
+
+      function SubtitleText({ text }: { text: string }) {
+        const wordPattern = /[\p{L}\p{M}]+(?:[’'][\p{L}\p{M}]+)?/gu;
+        const renderLine = (line: string) => {
+          const parts: React.ReactNode[] = [];
+          let lastIndex = 0;
+          for (const match of line.matchAll(wordPattern)) {
+            const word = match[0];
+            const index = match.index || 0;
+            if (index > lastIndex) {
+              parts.push(line.slice(lastIndex, index));
+            }
+            parts.push(<WordToken key={`${index}-${word}`} word={word} />);
+            lastIndex = index + word.length;
+          }
+          if (lastIndex < line.length) {
+            parts.push(line.slice(lastIndex));
+          }
+          return parts;
+        };
+
         const lines = text.split(/\n/);
         return (
           <>
             {lines.map((line, lineIndex) => (
               <React.Fragment key={lineIndex}>
-                {line}
+                {renderLine(line)}
                 {lineIndex < lines.length - 1 ? <br /> : null}
               </React.Fragment>
             ))}
@@ -604,14 +773,21 @@
         onJump: (timeMs: number) => void;
       }) {
         return (
-          <button
+          <div
             className={`cue-line ${current ? "current" : "context"}`}
-            type="button"
+            role="button"
+            tabIndex={0}
             onClick={() => onJump(cue.startMs)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onJump(cue.startMs);
+              }
+            }}
           >
             <span className="cue-time">{formatTime(cue.startMs)}</span>
-            <PlainSubtitleText text={cue.text} />
-          </button>
+            <SubtitleText text={cue.text} />
+          </div>
         );
       }
 
