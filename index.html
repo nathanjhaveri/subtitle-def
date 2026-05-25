@@ -8,6 +8,7 @@
     <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.25.7/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
     <style>
       :root {
         color-scheme: dark;
@@ -216,6 +217,15 @@
         line-height: 1.45;
       }
 
+      .reader {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(18rem, 25vw);
+        align-items: center;
+        gap: clamp(0.8rem, 2vw, 1.6rem);
+        min-height: 0;
+        width: 100%;
+      }
+
       .lyrics {
         display: grid;
         grid-auto-rows: min-content;
@@ -223,7 +233,7 @@
         gap: clamp(0.48rem, 1.8vh, 1.05rem);
         min-height: 0;
         margin: 0 auto;
-        width: min(70rem, 100%);
+        width: 100%;
       }
 
       .cue-line {
@@ -264,54 +274,141 @@
         font-weight: 500;
       }
 
-      .word-link {
-        position: relative;
+      .word-button {
+        display: inline;
+        padding: 0;
+        border: 0;
         color: inherit;
+        cursor: pointer;
+        font: inherit;
+        pointer-events: auto;
         text-decoration: none;
         text-decoration-color: transparent;
         text-underline-offset: 0.15em;
       }
 
-      .word-link:hover,
-      .word-link:focus {
+      .word-button.selected {
         color: var(--accent-strong);
         text-decoration: underline;
         text-decoration-color: rgba(214, 235, 255, 0.7);
         outline: none;
       }
 
-      .word-preview {
-        position: absolute;
-        z-index: 20;
-        left: 50%;
-        bottom: calc(100% + 0.55rem);
-        width: min(22rem, 74vw);
-        max-height: 12rem;
-        overflow: auto;
-        padding: 0.72rem 0.82rem;
-        border: 1px solid #363632;
-        border-radius: 0.5rem;
-        background: #151515;
-        box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.54);
-        color: var(--text);
-        font-size: 0.92rem;
-        font-weight: 500;
-        line-height: 1.4;
-        text-align: left;
-        transform: translateX(-50%);
+      .word-button:focus-visible {
+        outline: 1px solid rgba(214, 235, 255, 0.65);
+        outline-offset: 0.12em;
       }
 
-      .word-preview::after {
-        position: absolute;
-        left: calc(50% - 0.42rem);
-        bottom: -0.42rem;
-        width: 0.82rem;
-        height: 0.82rem;
-        border-right: 1px solid #363632;
-        border-bottom: 1px solid #363632;
-        background: #151515;
-        content: "";
-        transform: rotate(45deg);
+      .definition-panel {
+        min-height: 12rem;
+        max-height: 100%;
+        overflow: auto;
+        padding: clamp(0.85rem, 1.5vw, 1.05rem);
+        border: 1px solid #363632;
+        border-radius: 0.5rem;
+        background: rgba(16, 16, 16, 0.9);
+        box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.28);
+        color: var(--text);
+        font-size: clamp(0.78rem, 1.15vw, 0.94rem);
+        font-weight: 520;
+        line-height: 1.4;
+        text-align: left;
+      }
+
+      .definition-kicker {
+        margin-bottom: 0.24rem;
+        color: var(--quiet);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .definition-title {
+        margin-bottom: 0.65rem;
+        color: var(--accent-strong);
+        font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+        font-weight: 820;
+      }
+
+      .definition-status {
+        color: var(--muted);
+      }
+
+      .definition-content {
+        color: var(--text);
+      }
+
+      .definition-content p {
+        margin: 0 0 0.45rem;
+      }
+
+      .definition-content ol,
+      .definition-content ul {
+        margin: 0.35rem 0 0.65rem 1.2rem;
+        padding: 0;
+      }
+
+      .definition-content li {
+        margin: 0.2rem 0;
+      }
+
+      .definition-entry + .definition-entry {
+        margin-top: 0.72rem;
+        padding-top: 0.65rem;
+        border-top: 1px solid #30302c;
+      }
+
+      .definition-head {
+        margin-bottom: 0.35rem;
+        color: var(--accent-strong);
+        font-weight: 800;
+      }
+
+      .definition-entry-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .definition-entry-header .definition-head {
+        margin-bottom: 0;
+      }
+
+      .definition-link {
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .definition-link:hover,
+      .definition-link:focus {
+        color: var(--accent-strong);
+        text-decoration: underline;
+        text-underline-offset: 0.18em;
+      }
+
+      .dictionary-import-button {
+        min-height: 2.1rem;
+        margin-top: 0.75rem;
+        padding: 0 0.85rem;
+        border: 1px solid var(--line);
+        border-radius: 0.45rem;
+        background: var(--panel-strong);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 760;
+      }
+
+      .dictionary-import-button:hover,
+      .dictionary-import-button:focus {
+        border-color: #44443f;
+        background: #202020;
       }
 
       .empty-current {
@@ -328,7 +425,7 @@
 
       .control-row {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto auto minmax(0, 1fr);
         align-items: center;
         gap: clamp(0.55rem, 1.4vw, 1rem);
       }
@@ -355,32 +452,6 @@
       .seek input {
         width: 100%;
         accent-color: var(--accent);
-      }
-
-      .cue-map {
-        position: relative;
-        width: 100%;
-        height: 1.3rem;
-        margin-top: 0.32rem;
-        overflow: hidden;
-        border-radius: 0.35rem;
-        background: #171715;
-      }
-
-      .cue-segment {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        min-width: 1px;
-        background: rgba(241, 241, 237, 0.54);
-      }
-
-      .cue-cursor {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: #ff5d55;
       }
 
       .warning {
@@ -413,6 +484,11 @@
         gap: 0;
       }
 
+      .compact-height .reader {
+        grid-template-columns: minmax(0, 1fr) minmax(15rem, 24vw);
+        gap: 0.7rem;
+      }
+
       .compact-height .cue-line.context {
         display: none;
       }
@@ -420,11 +496,26 @@
       .compact-height .cue-line.current {
         font-size: 2rem;
         line-height: 1.12;
-        pointer-events: none;
       }
 
       .compact-height .cue-time {
         display: none;
+      }
+
+      .compact-height .definition-panel {
+        min-height: 0;
+        max-height: 7rem;
+        padding: 0.55rem 0.65rem;
+        font-size: 0.74rem;
+      }
+
+      .compact-height .definition-kicker {
+        display: none;
+      }
+
+      .compact-height .definition-title {
+        margin-bottom: 0.35rem;
+        font-size: 0.95rem;
       }
 
       .compact-height .controls {
@@ -461,6 +552,11 @@
           gap: 0.14rem;
         }
 
+        .reader {
+          grid-template-columns: minmax(0, 1fr) minmax(15rem, 24vw);
+          gap: 0.7rem;
+        }
+
         .cue-line.context {
           display: none;
         }
@@ -468,11 +564,26 @@
         .cue-line.current {
           font-size: 2rem;
           line-height: 1.12;
-          pointer-events: none;
         }
 
         .cue-time {
           display: none;
+        }
+
+        .definition-panel {
+          min-height: 0;
+          max-height: 7rem;
+          padding: 0.55rem 0.65rem;
+          font-size: 0.74rem;
+        }
+
+        .definition-kicker {
+          display: none;
+        }
+
+        .definition-title {
+          margin-bottom: 0.35rem;
+          font-size: 0.95rem;
         }
 
         .controls {
@@ -518,22 +629,83 @@
         }
       }
 
+      @media (max-width: 860px) {
+        .reader {
+          grid-template-columns: 1fr;
+          align-content: center;
+        }
+
+        .definition-panel {
+          min-height: 0;
+          max-height: 10rem;
+        }
+      }
+
+      .layout-strip .stage {
+        align-items: end;
+        padding: 0.15rem clamp(0.35rem, 1vw, 0.75rem) 0.35rem;
+        overflow: hidden;
+      }
+
+      .layout-strip .reader {
+        grid-template-columns: minmax(0, 1fr) minmax(22.5rem, 36vw);
+        align-items: end;
+        gap: clamp(0.55rem, 1.2vw, 1rem);
+        width: 100%;
+      }
+
       .layout-strip .lyrics {
-        align-content: center;
-        padding-bottom: min(2.2vh, 0.8rem);
+        align-content: end;
+        margin: 0;
+        padding-bottom: 0;
       }
 
       .layout-strip .cue-line.context {
-        font-size: clamp(0.88rem, 2.4vh, 1.28rem);
-        opacity: 0.36;
+        display: none;
       }
 
       .layout-strip .cue-line.current {
-        font-size: clamp(1.55rem, 9vh, 3.7rem);
+        font-size: clamp(1.7rem, 8vh, 3.45rem);
+        line-height: 1.1;
+      }
+
+      .layout-strip .cue-time {
+        display: none;
+      }
+
+      .layout-strip .definition-panel {
+        align-self: end;
+        min-height: 0;
+        height: min(18rem, max(8.5rem, 46vh));
+        max-height: min(18rem, calc(100vh - 6.4rem));
+        padding: clamp(0.7rem, 1.15vw, 0.95rem);
+        font-size: clamp(0.78rem, 1vw, 0.9rem);
+      }
+
+      .layout-strip .definition-title {
+        margin-bottom: 0.48rem;
+      }
+
+      @media (max-width: 860px) {
+        .layout-strip .reader {
+          grid-template-columns: 1fr;
+          align-content: end;
+        }
+
+        .layout-strip .definition-panel {
+          height: min(12rem, 36vh);
+          max-height: min(12rem, 36vh);
+        }
       }
 
       .layout-context .lyrics {
         align-content: center;
+      }
+
+      .layout-context .cue-line.context,
+      .layout-context .cue-line.current {
+        font-size: clamp(1.15rem, 3.4vh, 2rem);
+        line-height: 1.24;
       }
     </style>
   </head>
@@ -541,9 +713,7 @@
     <div id="root"></div>
     <script id="app-source" type="text/plain">
       const { useCallback, useEffect, useMemo, useRef, useState } = React;
-      const SUBTITLE_MODULE_URL = "https://esm.sh/subtitle@4.0.1";
-      const WIKTIONARY_API_URL = "https://fr.wiktionary.org/w/api.php";
-      const wordDefinitionCache = new Map<string, Promise<string>>();
+      const dictionaryDefinitionCache = new Map<string, Promise<PreviewResult>>();
 
       type Cue = {
         index: number;
@@ -575,40 +745,99 @@
         updatedAt: number;
       };
 
-      let subtitleModulePromise: Promise<any> | null = null;
+      type PreviewResult = {
+        html: string;
+        source: "local" | "missing" | "error" | "unavailable";
+      };
 
-      function loadSubtitleModule(): Promise<any> {
-        if (!subtitleModulePromise) {
-          subtitleModulePromise = import(SUBTITLE_MODULE_URL);
-        }
-        return subtitleModulePromise;
-      }
+      type LocalDictionaryEntry = [string, string];
+
+      type LocalDictionaryPayload = {
+        v: number;
+        format: string;
+        source: string;
+        generatedAt: string;
+        e: LocalDictionaryEntry[];
+        l: Record<string, number | number[]>;
+      };
+
+      const DICTIONARY_SCRIPT_URL = "assets/dictionary/fr-fr-v1.js";
+      const DICTIONARY_CACHE_KEY = "fr-fr-v1.js:gzip-bytes";
+      const DICTIONARY_DB_NAME = "subtitle-def:dictionary:v1";
+      const DICTIONARY_STORE_NAME = "files";
+      const FRENCH_ELISION_PREFIX_RE = /^(?:[cdjlmnst]|qu)['’](?=.)/;
+      let localDictionaryPromise: Promise<LocalDictionaryPayload | null> | null = null;
+      let dictionaryBytesPromise: Promise<Uint8Array> | null = null;
+      let dictionaryDbPromise: Promise<IDBDatabase | null> | null = null;
+      let dictionaryLoadError = "";
+      let importedDictionaryBytes: Uint8Array | null = null;
 
       // SRT is a sequence of cue blocks separated by blank lines:
       // optional numeric index, "start --> end", then one or more text lines.
-      // Parsing is delegated to subtitle@4.0.1, matching the parser used by Substitute.
+      // This local parser avoids a runtime module import so file loading works from disk.
+      function parseSrtTimestamp(value: string): number | null {
+        const token = value.trim().split(/\s+/)[0];
+        const full = token.match(/^(\d+):([0-5]?\d):([0-5]?\d)(?:[,.](\d{1,3}))?$/);
+        const short = token.match(/^([0-5]?\d):([0-5]?\d)(?:[,.](\d{1,3}))?$/);
+        if (!full && !short) return null;
+
+        const hours = full ? Number(full[1]) : 0;
+        const minutes = Number(full ? full[2] : short![1]);
+        const seconds = Number(full ? full[3] : short![2]);
+        const fraction = full ? full[4] : short![3];
+        const milliseconds = fraction ? Number(fraction.padEnd(3, "0").slice(0, 3)) : 0;
+        return (hours * 3600 + minutes * 60 + seconds) * 1000 + milliseconds;
+      }
+
       async function parseSrt(text: string): Promise<ParseResult> {
-        const subtitle = await loadSubtitleModule();
-        const parsed = subtitle.parseSync(text);
         const warnings: string[] = [];
-        const cues = parsed
-          .filter((node: any) => node && node.type === "cue" && node.data)
-          .map((node: any, index: number) => {
-            const data = node.data;
-            return {
-              index,
-              startMs: Number(data.start),
-              endMs: Number(data.end),
-              text: String(data.text || "").trim()
-            };
-          })
-          .filter((cue: Cue) => {
-            return Number.isFinite(cue.startMs) && Number.isFinite(cue.endMs) && cue.endMs >= cue.startMs && cue.text.length > 0;
-          })
-          .sort((a: Cue, b: Cue) => a.startMs - b.startMs || a.endMs - b.endMs);
+        const normalized = text
+          .replace(/^\uFEFF/, "")
+          .replace(/\r\n/g, "\n")
+          .replace(/\r/g, "\n");
+        const blocks = normalized.split(/\n{2,}/);
+        const cues: Cue[] = [];
+        let skipped = 0;
+
+        for (const block of blocks) {
+          const lines = block
+            .split("\n")
+            .map((line) => line.replace(/^\uFEFF/, ""))
+            .filter((line, index, all) => line.trim() || index > 0 && index < all.length - 1);
+          if (!lines.some((line) => line.trim())) continue;
+
+          const timingLineIndex = lines.findIndex((line) => line.includes("-->"));
+          if (timingLineIndex === -1) {
+            skipped += 1;
+            continue;
+          }
+
+          const [rawStart, rawEnd] = lines[timingLineIndex].split(/\s*-->\s*/, 2);
+          const startMs = parseSrtTimestamp(rawStart || "");
+          const endMs = parseSrtTimestamp(rawEnd || "");
+          const cueText = lines.slice(timingLineIndex + 1).join("\n").trim();
+
+          if (startMs === null || endMs === null || endMs < startMs || !cueText) {
+            skipped += 1;
+            continue;
+          }
+
+          cues.push({
+            index: cues.length,
+            startMs,
+            endMs,
+            text: cueText
+          });
+        }
+
+        cues.sort((a: Cue, b: Cue) => a.startMs - b.startMs || a.endMs - b.endMs);
 
         if (cues.length === 0) {
           throw new Error("No valid SRT cues were found.");
+        }
+
+        if (skipped > 0) {
+          warnings.push(`${skipped} malformed SRT block${skipped === 1 ? " was" : "s were"} skipped.`);
         }
 
         for (let i = 1; i < cues.length; i += 1) {
@@ -707,60 +936,284 @@
       }
 
       function normalizeWord(word: string): string {
-        return word.replace(/^['’]+|['’]+$/g, "").toLocaleLowerCase("fr");
+        const normalized = word.trim().replace(/^['’]+|['’]+$/g, "").toLocaleLowerCase("fr");
+        return normalized.replace(FRENCH_ELISION_PREFIX_RE, "");
       }
 
-      function wiktionaryUrl(word: string): string {
-        return `https://fr.wiktionary.org/wiki/${encodeURIComponent(normalizeWord(word))}`;
+      function escapeHtml(value: string): string {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
       }
 
-      function cleanWikitext(value: string): string {
-        let text = value
-          .replace(/<ref[\s\S]*?<\/ref>/gi, "")
-          .replace(/<[^>]+>/g, "")
-          .replace(/'''?/g, "");
+      function sanitizeDefinitionHtml(html: string): string {
+        const parser = new DOMParser();
+        const document = parser.parseFromString(`<div>${html}</div>`, "text/html");
+        const allowed = new Set(["b", "br", "div", "em", "i", "li", "ol", "p", "span", "strong", "ul"]);
 
-        for (let i = 0; i < 4; i += 1) {
-          text = text.replace(/\{\{[^{}]*\}\}/g, "");
-        }
+        const cleanNode = (node: Node): Node | null => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            return document.createTextNode(node.textContent || "");
+          }
+          if (node.nodeType !== Node.ELEMENT_NODE) return null;
+          const element = node as Element;
+          const tag = element.tagName.toLowerCase();
+          if (!allowed.has(tag)) {
+            const fragment = document.createDocumentFragment();
+            element.childNodes.forEach((child) => {
+              const cleaned = cleanNode(child);
+              if (cleaned) fragment.appendChild(cleaned);
+            });
+            return fragment;
+          }
 
-        return text
-          .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
-          .replace(/\[\[([^\]]+)\]\]/g, "$1")
-          .replace(/\s+/g, " ")
-          .trim();
-      }
-
-      async function fetchWiktionaryPreview(word: string): Promise<string> {
-        const normalized = normalizeWord(word);
-        if (!normalized) throw new Error("No word selected.");
-        if (!wordDefinitionCache.has(normalized)) {
-          const params = new URLSearchParams({
-            action: "parse",
-            format: "json",
-            origin: "*",
-            prop: "wikitext",
-            page: normalized
+          const cleanedElement = document.createElement(tag);
+          element.childNodes.forEach((child) => {
+            const cleaned = cleanNode(child);
+            if (cleaned) cleanedElement.appendChild(cleaned);
           });
+          return cleanedElement;
+        };
 
-          wordDefinitionCache.set(normalized, fetch(`${WIKTIONARY_API_URL}?${params}`)
-            .then((response) => {
-              if (!response.ok) throw new Error("Preview unavailable.");
-              return response.json();
-            })
-            .then((data) => {
-              if (data.error) throw new Error("No Wiktionary page found.");
-              const wikitext = String(data?.parse?.wikitext?.["*"] || "");
-              const definitionLine = wikitext
-                .split(/\r?\n/)
-                .find((line) => /^#(?![:*])\s+/.test(line));
-              const preview = definitionLine ? cleanWikitext(definitionLine.replace(/^#+\s*/, "")) : "";
-              if (!preview) throw new Error("No short preview found.");
-              return preview.length > 320 ? `${preview.slice(0, 317)}...` : preview;
-            }));
+        const container = document.createElement("div");
+        document.body.firstElementChild?.childNodes.forEach((child) => {
+          const cleaned = cleanNode(child);
+          if (cleaned) container.appendChild(cleaned);
+        });
+        return container.innerHTML;
+      }
+
+      function resetDictionaryRuntimeCaches() {
+        dictionaryDefinitionCache.clear();
+        localDictionaryPromise = null;
+        dictionaryBytesPromise = null;
+        dictionaryLoadError = "";
+      }
+
+      function base64ToBytes(base64: string): Uint8Array {
+        const binary = window.atob(base64.replace(/\s+/g, ""));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
         }
+        return bytes;
+      }
 
-        return wordDefinitionCache.get(normalized)!;
+      function openDictionaryDb(): Promise<IDBDatabase | null> {
+        if (dictionaryDbPromise) return dictionaryDbPromise;
+        dictionaryDbPromise = new Promise((resolve) => {
+          if (!window.indexedDB) {
+            resolve(null);
+            return;
+          }
+          const request = window.indexedDB.open(DICTIONARY_DB_NAME, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(DICTIONARY_STORE_NAME)) {
+              db.createObjectStore(DICTIONARY_STORE_NAME);
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => {
+            console.warn("Could not open dictionary cache.", request.error);
+            resolve(null);
+          };
+        });
+        return dictionaryDbPromise;
+      }
+
+      async function readDictionaryCachedBytes(): Promise<Uint8Array | null> {
+        const db = await openDictionaryDb();
+        if (!db) return null;
+        return new Promise((resolve) => {
+          const transaction = db.transaction(DICTIONARY_STORE_NAME, "readonly");
+          const request = transaction.objectStore(DICTIONARY_STORE_NAME).get(DICTIONARY_CACHE_KEY);
+          request.onsuccess = () => {
+            const result = request.result;
+            if (result instanceof Uint8Array) {
+              resolve(result);
+            } else if (result instanceof ArrayBuffer) {
+              resolve(new Uint8Array(result));
+            } else {
+              resolve(null);
+            }
+          };
+          request.onerror = () => resolve(null);
+        });
+      }
+
+      async function writeDictionaryCachedBytes(bytes: Uint8Array): Promise<void> {
+        const db = await openDictionaryDb();
+        if (!db) return;
+        await new Promise<void>((resolve) => {
+          const transaction = db.transaction(DICTIONARY_STORE_NAME, "readwrite");
+          transaction.objectStore(DICTIONARY_STORE_NAME).put(bytes, DICTIONARY_CACHE_KEY);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => {
+            console.warn("Could not cache dictionary file.", transaction.error);
+            resolve();
+          };
+        });
+      }
+
+      function loadDictionaryScriptBytes(): Promise<Uint8Array> {
+        return new Promise((resolve, reject) => {
+          const existing = (window as Window & { __subtitleDefDictionaryDataBase64?: string }).__subtitleDefDictionaryDataBase64;
+          if (existing) {
+            resolve(base64ToBytes(existing));
+            return;
+          }
+
+          const host = window as Window & {
+            __subtitleDefDictionaryDataBase64?: string;
+            __subtitleDefDictionaryDataLoaded?: (base64: string) => void;
+          };
+          const previousCallback = host.__subtitleDefDictionaryDataLoaded;
+          const script = document.createElement("script");
+
+          const cleanup = () => {
+            script.remove();
+            host.__subtitleDefDictionaryDataLoaded = previousCallback;
+          };
+
+          host.__subtitleDefDictionaryDataLoaded = (base64: string) => {
+            host.__subtitleDefDictionaryDataBase64 = base64;
+            cleanup();
+            resolve(base64ToBytes(base64));
+          };
+
+          script.src = DICTIONARY_SCRIPT_URL;
+          script.async = true;
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("Dictionary file unavailable."));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      async function loadDictionaryBytes(): Promise<Uint8Array> {
+        if (!dictionaryBytesPromise) {
+          dictionaryBytesPromise = (async () => {
+            if (importedDictionaryBytes) return importedDictionaryBytes;
+            const cached = await readDictionaryCachedBytes();
+            if (cached) return cached;
+
+            const bytes = await loadDictionaryScriptBytes();
+            await writeDictionaryCachedBytes(bytes);
+            return bytes;
+          })();
+        }
+        return dictionaryBytesPromise;
+      }
+
+      async function loadLocalDictionary(): Promise<LocalDictionaryPayload | null> {
+        if (!localDictionaryPromise) {
+          localDictionaryPromise = (async () => {
+            if (!window.fflate?.gunzipSync) {
+              throw new Error("Dictionary decompression is unavailable.");
+            }
+            const compressed = await loadDictionaryBytes();
+            const inflated = window.fflate.gunzipSync(compressed);
+            const json = new TextDecoder("utf-8").decode(inflated);
+            const dictionary = JSON.parse(json);
+            if (dictionary?.format !== "subtitle-def-dictionary" || !dictionary.e || !dictionary.l) {
+              throw new Error("Dictionary file has an unsupported format.");
+            }
+            return dictionary as LocalDictionaryPayload;
+          })().catch((error) => {
+            dictionaryLoadError = error instanceof Error ? error.message : "Dictionary lookup unavailable.";
+            console.warn("Could not load local dictionary.", error);
+            return null;
+          });
+        }
+        return localDictionaryPromise;
+      }
+
+      function wiktionaryUrl(headword: string): string {
+        return `https://fr.wiktionary.org/wiki/${encodeURIComponent(headword)}`;
+      }
+
+      function renderDefinitionEntry([headword, definition]: LocalDictionaryEntry): string {
+        const safeHeadword = escapeHtml(headword);
+        const safeUrl = escapeHtml(wiktionaryUrl(headword));
+        return [
+          `<div class="definition-entry">`,
+          `<div class="definition-entry-header">`,
+          `<div class="definition-head">${safeHeadword}</div>`,
+          `<a class="definition-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Wiktionary</a>`,
+          `</div>`,
+          sanitizeDefinitionHtml(definition),
+          `</div>`
+        ].join("");
+      }
+
+      async function lookupDictionaryDefinition(word: string): Promise<PreviewResult> {
+        const normalized = normalizeWord(word);
+        if (!normalized) {
+          return { html: "No word selected.", source: "error" };
+        }
+        if (!dictionaryDefinitionCache.has(normalized)) {
+          dictionaryDefinitionCache.set(normalized, loadLocalDictionary().then((dictionary) => {
+            if (!dictionary) {
+              const unavailable = dictionaryLoadError.includes("unavailable");
+              return {
+                html: unavailable ? "Dictionary file unavailable." : escapeHtml(dictionaryLoadError || "Local dictionary unavailable."),
+                source: unavailable ? "unavailable" as const : "error" as const
+              };
+            }
+
+            const rawMatches = dictionary.l[normalized];
+            const matches = typeof rawMatches === "number" ? [rawMatches] : rawMatches;
+            if (!matches?.length) {
+              return { html: `No local entry for ${escapeHtml(normalized)}.`, source: "missing" as const };
+            }
+
+            const entries = matches
+              .slice(0, 3)
+              .map((entryIndex) => dictionary.e[entryIndex])
+              .filter(Boolean);
+
+            if (!entries.length) {
+              return { html: `No local entry for ${escapeHtml(normalized)}.`, source: "missing" as const };
+            }
+
+            return { html: entries.map(renderDefinitionEntry).join(""), source: "local" as const };
+          }).catch((error) => {
+            return {
+              html: escapeHtml(error instanceof Error ? error.message : "Dictionary lookup unavailable."),
+              source: "error" as const
+            };
+          }));
+        }
+        return dictionaryDefinitionCache.get(normalized)!;
+      }
+
+      async function importDictionaryFiles(files: FileList | null): Promise<number> {
+        if (!files?.length) return 0;
+        const file = Array.from(files).find((candidate) => candidate.name.endsWith(".js") || candidate.name.endsWith(".json.gz") || candidate.name.endsWith(".gz"));
+        if (!file) return 0;
+        let bytes: Uint8Array;
+        if (file.name.endsWith(".js")) {
+          const text = await file.text();
+          const start = text.indexOf("const chunks = [");
+          const end = start === -1 ? -1 : text.indexOf("];", start);
+          if (start === -1 || end === -1) throw new Error("Dictionary script has an unsupported format.");
+          const chunkText = text.slice(start, end);
+          const chunks = Array.from(chunkText.matchAll(/"([A-Za-z0-9+/=]+)"/g), (match) => match[1]);
+          if (!chunks.length) throw new Error("Dictionary script has an unsupported format.");
+          bytes = base64ToBytes(chunks.join(""));
+        } else {
+          bytes = new Uint8Array(await file.arrayBuffer());
+        }
+        importedDictionaryBytes = bytes;
+        await writeDictionaryCachedBytes(bytes);
+        resetDictionaryRuntimeCaches();
+        importedDictionaryBytes = bytes;
+        return 1;
       }
 
       type TextSegment = {
@@ -812,73 +1265,47 @@
         return segments.length ? segments : [{ text, style: {} }];
       }
 
-      function WordToken({ word, style }: { word: string; style?: React.CSSProperties }) {
-        const [preview, setPreview] = useState("");
-        const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-        const [open, setOpen] = useState(false);
-        const timerRef = useRef<number | null>(null);
-        const normalized = normalizeWord(word);
+      function WordToken({
+        word,
+        style,
+        selectedWord,
+        onSelectWord
+      }: {
+        word: string;
+        style?: React.CSSProperties;
+        selectedWord: string;
+        onSelectWord: (word: string) => void;
+      }) {
+        const selected = normalizeWord(word) === normalizeWord(selectedWord);
 
-        const clearTimer = () => {
-          if (timerRef.current !== null) {
-            window.clearTimeout(timerRef.current);
-            timerRef.current = null;
-          }
-        };
-
-        const loadPreview = useCallback(() => {
-          if (status === "ready" || status === "loading") return;
-          setStatus("loading");
-          fetchWiktionaryPreview(word)
-            .then((value) => {
-              setPreview(value);
-              setStatus("ready");
-            })
-            .catch((error) => {
-              setPreview(error instanceof Error ? error.message : "Preview unavailable.");
-              setStatus("error");
-            });
-        }, [status, word]);
-
-        const showPreview = () => {
-          setOpen(true);
-          clearTimer();
-          if (status === "idle") {
-            timerRef.current = window.setTimeout(loadPreview, 1000);
-          }
-        };
-
-        const hidePreview = () => {
-          setOpen(false);
-          clearTimer();
-        };
-
-        useEffect(() => clearTimer, []);
+        const select = useCallback(() => {
+          onSelectWord(word);
+        }, [onSelectWord, word]);
 
         return (
-          <a
-            className="word-link"
+          <button
+            className={`word-button ${selected ? "selected" : ""}`}
+            type="button"
             style={style}
-            href={wiktionaryUrl(word)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(event) => event.stopPropagation()}
-            onMouseEnter={showPreview}
-            onMouseLeave={hidePreview}
-            onFocus={showPreview}
-            onBlur={hidePreview}
+            onClick={(event) => {
+              event.stopPropagation();
+              select();
+            }}
           >
             {word}
-            {open && status !== "idle" ? (
-              <span className="word-preview" role="tooltip">
-                {status === "loading" ? `Loading ${normalized}...` : preview}
-              </span>
-            ) : null}
-          </a>
+          </button>
         );
       }
 
-      function SubtitleText({ text }: { text: string }) {
+      function SubtitleText({
+        text,
+        selectedWord,
+        onSelectWord
+      }: {
+        text: string;
+        selectedWord: string;
+        onSelectWord: (word: string) => void;
+      }) {
         const wordPattern = /[\p{L}\p{M}]+(?:[’'][\p{L}\p{M}]+)?/gu;
         const renderSegment = (segment: TextSegment, segmentKey: string) => {
           const parts: React.ReactNode[] = [];
@@ -893,7 +1320,15 @@
                 </span>
               );
             }
-            parts.push(<WordToken key={`${segmentKey}-word-${index}-${word}`} word={word} style={segment.style} />);
+            parts.push(
+              <WordToken
+                key={`${segmentKey}-word-${index}-${word}`}
+                word={word}
+                style={segment.style}
+                selectedWord={selectedWord}
+                onSelectWord={onSelectWord}
+              />
+            );
             lastIndex = index + word.length;
           }
           if (lastIndex < segment.text.length) {
@@ -973,11 +1408,15 @@
       function CueLine({
         cue,
         current,
-        onJump
+        onJump,
+        selectedWord,
+        onSelectWord
       }: {
         cue: Cue;
         current?: boolean;
         onJump: (timeMs: number) => void;
+        selectedWord: string;
+        onSelectWord: (word: string) => void;
       }) {
         return (
           <div
@@ -993,7 +1432,7 @@
             }}
           >
             <span className="cue-time">{formatTime(cue.startMs)}</span>
-            <SubtitleText text={cue.text} />
+            <SubtitleText text={cue.text} selectedWord={selectedWord} onSelectWord={onSelectWord} />
           </div>
         );
       }
@@ -1002,12 +1441,16 @@
         cues,
         timeMs,
         onJump,
-        smallHeight
+        smallHeight,
+        selectedWord,
+        onSelectWord
       }: {
         cues: Cue[];
         timeMs: number;
         onJump: (timeMs: number) => void;
         smallHeight: boolean;
+        selectedWord: string;
+        onSelectWord: (word: string) => void;
       }) {
         const activeIndex = findActiveCueIndex(cues, timeMs);
         const baseIndex = nearestCueIndex(cues, activeIndex, timeMs);
@@ -1021,7 +1464,14 @@
         return (
           <div className="lyrics" aria-live="polite">
             {visible.map(({ cue, index }) => (
-              <CueLine key={`${cue.startMs}-${index}`} cue={cue} current={index === primaryIndex} onJump={onJump} />
+              <CueLine
+                key={`${cue.startMs}-${index}`}
+                cue={cue}
+                current={index === primaryIndex}
+                onJump={onJump}
+                selectedWord={selectedWord}
+                onSelectWord={onSelectWord}
+              />
             ))}
             {activeIndex === -1 && !smallHeight ? (
               <div className="cue-line current empty-current">
@@ -1032,25 +1482,115 @@
         );
       }
 
-      function CueMap({
-        cues,
-        durationMs,
-        timeMs
-      }: {
-        cues: Cue[];
-        durationMs: number;
-        timeMs: number;
-      }) {
-        const visibleCues = cues.slice(0, 700);
+      function DefinitionPanel({ word }: { word: string }) {
+        const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+        const [result, setResult] = useState<PreviewResult | null>(null);
+        const [importing, setImporting] = useState(false);
+        const [importMessage, setImportMessage] = useState("");
+        const importInputRef = useRef<HTMLInputElement | null>(null);
+        const normalized = normalizeWord(word);
+
+        const resolveLookup = useCallback((lookupWord: string) => {
+          setStatus("loading");
+          setResult(null);
+          return lookupDictionaryDefinition(lookupWord)
+            .then((value) => {
+              setResult(value);
+              setStatus(value.source === "error" ? "error" : "ready");
+            })
+            .catch((error) => {
+              setResult({
+                html: escapeHtml(error instanceof Error ? error.message : "Dictionary lookup unavailable."),
+                source: "error"
+              });
+              setStatus("error");
+            });
+        }, []);
+
+        const onImportDictionary = useCallback(async (files: FileList | null) => {
+          setImporting(true);
+          setImportMessage("");
+          try {
+            const imported = await importDictionaryFiles(files);
+            if (!imported) {
+              setImportMessage("Select fr-fr-v1.js.");
+              return;
+            }
+            setImportMessage("Dictionary imported.");
+            if (normalized) await resolveLookup(word);
+          } catch (error) {
+            setImportMessage(error instanceof Error ? error.message : "Dictionary import failed.");
+          } finally {
+            setImporting(false);
+          }
+        }, [normalized, resolveLookup, word]);
+
+        useEffect(() => {
+          let cancelled = false;
+          if (!normalized) {
+            setStatus("idle");
+            setResult(null);
+            return;
+          }
+
+          setStatus("loading");
+          setResult(null);
+          lookupDictionaryDefinition(word)
+            .then((value) => {
+              if (cancelled) return;
+              setResult(value);
+              setStatus(value.source === "error" ? "error" : "ready");
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              setResult({
+                html: escapeHtml(error instanceof Error ? error.message : "Dictionary lookup unavailable."),
+                source: "error"
+              });
+              setStatus("error");
+            });
+
+          return () => {
+            cancelled = true;
+          };
+        }, [normalized, word]);
+
+        const title = normalized || "Dictionnaire";
+        const html = status === "idle" ? "..." : status === "loading" ? "Loading..." : (result?.html || "No local entry.");
+        const showImport = result?.source === "unavailable";
+
         return (
-          <div className="cue-map" aria-hidden="true">
-            {visibleCues.map((cue, index) => {
-              const left = durationMs ? (cue.startMs / durationMs) * 100 : 0;
-              const width = durationMs ? Math.max(0.08, ((cue.endMs - cue.startMs) / durationMs) * 100) : 0;
-              return <span className="cue-segment" key={index} style={{ left: `${left}%`, width: `${width}%` }} />;
-            })}
-            <span className="cue-cursor" style={{ left: `${durationMs ? (timeMs / durationMs) * 100 : 0}%` }} />
-          </div>
+          <aside className="definition-panel" aria-live="polite">
+            <div className="definition-kicker">French dictionary</div>
+            <div className="definition-title">{title}</div>
+            <div
+              className={`definition-content ${status === "loading" || status === "idle" ? "definition-status" : ""}`}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+            {showImport ? (
+              <>
+                <button
+                  className="dictionary-import-button"
+                  type="button"
+                  disabled={importing}
+                  onClick={() => importInputRef.current?.click()}
+                >
+                  {importing ? "Importing..." : "Import dictionary file"}
+                </button>
+                <input
+                  ref={importInputRef}
+                  className="hidden-input"
+                  type="file"
+                  accept=".js,.gz,text/javascript,application/javascript,application/gzip"
+                  onChange={(event) => {
+                    onImportDictionary(event.currentTarget.files);
+                    event.currentTarget.value = "";
+                  }}
+                />
+                {importMessage ? <div className="hint">{importMessage}</div> : null}
+              </>
+            ) : null}
+          </aside>
         );
       }
 
@@ -1060,6 +1600,7 @@
         const [sourceText, setSourceText] = useState("");
         const [timeMs, setTimeMs] = useState(0);
         const [playing, setPlaying] = useState(false);
+        const [selectedWord, setSelectedWord] = useState("");
         const [mode, setMode] = useState<Mode>("auto");
         const [error, setError] = useState("");
         const [warning, setWarning] = useState("");
@@ -1177,6 +1718,7 @@
             setFileName(file.name);
             setSourceText(text);
             setTimeMs(0);
+            setSelectedWord("");
             setWarning(result.warning);
           } catch (loadError) {
             setError(loadError instanceof Error ? loadError.message : String(loadError));
@@ -1189,6 +1731,7 @@
           setFileName("");
           setSourceText("");
           setTimeMs(0);
+          setSelectedWord("");
           setWarning("");
           setError("");
           latestSessionRef.current = null;
@@ -1222,7 +1765,7 @@
           return () => window.removeEventListener("keydown", onKeyDown);
         }, [jumpCue]);
 
-        const compactHeight = smallHeight || mode === "strip";
+        const compactHeight = smallHeight;
         const layoutClass = getLayoutClass(mode, smallHeight);
 
         return (
@@ -1254,7 +1797,17 @@
 
             <section className={`stage ${cues.length ? "" : "empty"}`}>
               {cues.length ? (
-                <Lyrics cues={cues} timeMs={timeMs} onJump={setTime} smallHeight={compactHeight} />
+                <div className="reader">
+                  <Lyrics
+                    cues={cues}
+                    timeMs={timeMs}
+                    onJump={setTime}
+                    smallHeight={compactHeight}
+                    selectedWord={selectedWord}
+                    onSelectWord={setSelectedWord}
+                  />
+                  <DefinitionPanel word={selectedWord} />
+                </div>
               ) : (
                 <DropZone onLoad={loadFile} error={restoring ? "" : error} />
               )}
@@ -1262,6 +1815,7 @@
 
             <footer className="controls">
               <div className="control-row">
+                <div className="time-readout">{formatTime(timeMs)} / {formatTime(durationMs)}</div>
                 <div className="button-group">
                   <button className="control-button" type="button" title="Load another SRT" onClick={resetSession}>
                     X
@@ -1285,9 +1839,7 @@
                     disabled={!cues.length}
                     onChange={(event) => setTime(Number(event.currentTarget.value))}
                   />
-                  {cues.length ? <CueMap cues={cues} durationMs={durationMs} timeMs={timeMs} /> : null}
                 </div>
-                <div className="time-readout">{formatTime(timeMs)} / {formatTime(durationMs)}</div>
               </div>
               {warning ? <div className="warning">{warning}</div> : null}
             </footer>
